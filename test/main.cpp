@@ -45,11 +45,14 @@ int main(){
         }
         /*=== recv ===*/
         char    buffer[1024];
-        ssize_t bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+        ssize_t bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes > 0)
         {
             std::cout << "success to read " <<  bytes << "bytes" << std::endl;
             buffer[bytes] = '\0';
+
+            /*=== parsing path ===*/
+            std::string path = parse_path(buffer);
 
             /*=== send ===*/
             send_function(client_fd, buffer, bytes, 0);
