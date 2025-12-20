@@ -52,8 +52,14 @@ int main(){
             buffer[bytes] = '\0';
 
             /*=== parsing path ===*/
-            std::string path = parse_path(buffer);
+            std::string request = buffer;
+            std::string path;
+            extract_path(request, path);
+            std::cout << "path: " << path << std::endl;
 
+            /*=== decide status ===*/
+            int status = decide_status(path);
+            std::cout << status << "\n";
             /*=== send ===*/
             send_function(client_fd, buffer, bytes, 0);
         }
