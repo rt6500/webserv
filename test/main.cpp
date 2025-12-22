@@ -4,9 +4,13 @@
 #include <cstring>      //memset
 #include <unistd.h>     //close
 #include "mini_werbserv.hpp"
+#include <cstdio>
 
 int main(){
-    /* === socket ===*/
+    /* === socket creates endpoint===*/
+    // AF_INET = IPv4
+    // SOCK_STREAM= TCP
+    //  protocol = 0
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     std::cout << listen_fd << std::endl;
     if (listen_fd == -1)
@@ -15,7 +19,7 @@ int main(){
         return 1;
     }
 
-    /* === bind ===*/
+    /* === bind : assigns addres===*/
     sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -28,7 +32,7 @@ int main(){
         return 1;
     }
 
-    /* === listen ===*/
+    /* === listen makes it passive===*/
     if (listen(listen_fd, 10) == -1)
     {
         perror("listen");
@@ -36,7 +40,7 @@ int main(){
     }
 
     while (1) {
-        /* === accept ===*/
+        /* === accept creates a connection ===*/
         int client_fd = accept(listen_fd, 0, 0);
         if (client_fd == -1)
         {
@@ -54,12 +58,14 @@ int main(){
             /*=== parsing path ===*/
             std::string request = buffer;
             std::string path;
-            extract_path(request, path);
-            std::cout << "path: " << path << std::endl;
+            if (!extract_path(request, path))
+                std::cerr << "invalid request\n";
+            else
+                std::cout << "path: " << path << std::endl;
 
             /*=== decide status ===*/
             int status = decide_status(path);
-            std::cout << status << "\n";
+            std::cout << "status: " << status << "\n";
             /*=== send ===*/
             send_function(client_fd, buffer, bytes, 0);
         }

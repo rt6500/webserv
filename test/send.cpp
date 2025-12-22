@@ -3,9 +3,13 @@
 #include <netinet/in.h> //send
 #include <string>
 #include <sstream>
+#include <cstdio>
 
 void    send_function(int client_fd, char *buffer, size_t bytes, int flag)
 {
+    (void)buffer;
+    (void)bytes;
+    (void)flag;
     std::string body = "hello\n";
     std::ostringstream  oss;
     oss << "HTTP/1.1 200 OK\r\n"
