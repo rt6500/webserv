@@ -5,6 +5,7 @@
 #include <unistd.h>     //close
 #include "mini_werbserv.hpp"
 #include <cstdio>
+#include <sys/select.h> //select, fd_set, FD_*
 
 int main(){
     /* === socket creates endpoint===*/
@@ -38,43 +39,40 @@ int main(){
         perror("listen");
         return 1;
     }
+    
+    fd_set  master;
+    fd_set  read_fds;
+
+    FD_ZERO(&master);
+    FD_SET(listen_fd, &master);
+    int fd_max = listen_fd;
 
     while (1) {
-        /* === accept creates a connection ===*/
-        int client_fd = accept(listen_fd, 0, 0);
-        if (client_fd == -1)
+        read_fds = master;
+        select(fd_max + 1, &read_fds, NULL, NULL, NULL);
+        for (int i = 0; i <= fd_max; ++i)
         {
-            perror("accept");
-            continue;
+            if (FD_ISSET(i, &read_fds) == 1)
+            {
+                if (i == listen_fd)
+                {
+                    int client_fd = accept(listen_fd, NULL, NULL);
+                    if (client_fd == -1)
+                    {
+                        perror("accept");
+                        continue;
+                    }
+                    FD_SET(client_fd, &master);
+                    if (listen_fd < client_fd)
+                        fd_max = client_fd;
+                    std::cout << "accepted fd=" << client_fd << std::endl;
+                    close(client_fd);
+                }
+                else
+                    std::cout << "client fd readable fd=X" << std::endl;
+            }
+
         }
-        /*=== recv ===*/
-        char    buffer[1024];
-        ssize_t bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes > 0)
-        {
-            std::cout << "success to read " <<  bytes << "bytes" << std::endl;
-            buffer[bytes] = '\0';
-
-            /*=== parsing path ===*/
-            std::string request = buffer;
-            std::string path;
-            if (!extract_path(request, path))
-                std::cerr << "invalid request\n";
-            else
-                std::cout << "path: " << path << std::endl;
-
-            /*=== decide status ===*/
-            int status = decide_status(path);
-            std::cout << "status: " << status << "\n";
-            /*=== send ===*/
-            send_function(client_fd, buffer, bytes, 0);
-        }
-        else if (bytes == 0)
-            std::cout << "client disconnected" << std::endl;
-        else
-            perror("recv");
-
-        close(client_fd);
     }
     close(listen_fd);
     return 0;
