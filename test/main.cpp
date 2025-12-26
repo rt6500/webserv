@@ -6,6 +6,7 @@
 #include "mini_werbserv.hpp"
 #include <cstdio>
 #include <sys/select.h> //select, fd_set, FD_*
+#include <cerrno>
 
 int main(){
     
@@ -73,12 +74,11 @@ int main(){
                     if (client_fd > fd_max)
                         fd_max = client_fd;
                     std::cout << "accepted fd=" << client_fd << std::endl;
+                    std::cout << "new fd_max=" << fd_max << std::endl;
                     // close(client_fd);
                 }
                 else
                 {
-                    std::cout << "client fd readable fd=" << i << std::endl;
-
                     char    buffer[1024];
                     ssize_t size = recv(i, buffer, sizeof(buffer) - 1, 0);
                     if (size > 0)
@@ -86,19 +86,24 @@ int main(){
                         std::cout << "data arrived fd=" << i << ", bytes=" << size << std::endl;
                         buffer[size] = '\0';
                         std::cout.write(buffer, size);
-                        close(i);
-                        FD_CLR(i, &master);
+                        std::cout << "\n==================\n";
+                        // close(i);
+                        // FD_CLR(i, &master);
                     }
                     else if (size == 0)
                     {
                         std::cout << "the client (fd: " << i << ") is closed" << std::endl;
                         close(i);
+                        std::cout << "closed fd=" << i << std::endl;
                         FD_CLR(i, &master);
                     }
                     else if (size == -1)
                     {
+                        if (errno == EINTR)
+                            continue;
                         perror("recv");
                         close(i);
+                        std::cout << "closed fd=" << i << std::endl;
                         FD_CLR(i, &master);
                     }
                 }
