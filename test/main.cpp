@@ -8,6 +8,7 @@
 #include <sys/select.h> //select, fd_set, FD_*
 
 int main(){
+    
     /* === socket creates endpoint===*/
     // AF_INET = IPv4
     // SOCK_STREAM= TCP
@@ -49,10 +50,16 @@ int main(){
 
     while (1) {
         read_fds = master;
-        select(fd_max + 1, &read_fds, NULL, NULL, NULL);
+        //眠るから、Kernel, read_setの少なくとも一つのFdがreadableになったら起こして。
+        //チェックするfdの数はfd_max + 1
+        if (select(fd_max + 1, &read_fds, NULL, NULL, NULL) == -1)
+        {
+            perror("select");
+            continue;
+        }
         for (int i = 0; i <= fd_max; ++i)
         {
-            if (FD_ISSET(i, &read_fds) == 1)
+            if (FD_ISSET(i, &read_fds))
             {
                 if (i == listen_fd)
                 {
@@ -63,17 +70,41 @@ int main(){
                         continue;
                     }
                     FD_SET(client_fd, &master);
-                    if (listen_fd < client_fd)
+                    if (client_fd > fd_max)
                         fd_max = client_fd;
                     std::cout << "accepted fd=" << client_fd << std::endl;
-                    close(client_fd);
+                    // close(client_fd);
                 }
                 else
-                    std::cout << "client fd readable fd=X" << std::endl;
+                {
+                    std::cout << "client fd readable fd=" << i << std::endl;
+
+                    char    buffer[1024];
+                    ssize_t size = recv(i, buffer, sizeof(buffer) - 1, 0);
+                    if (size > 0)
+                    {
+                        std::cout << "data arrived fd=" << i << ", bytes=" << size << std::endl;
+                        buffer[size] = '\0';
+                        std::cout.write(buffer, size);
+                        close(i);
+                        FD_CLR(i, &master);
+                    }
+                    else if (size == 0)
+                    {
+                        std::cout << "the client (fd: " << i << ") is closed" << std::endl;
+                        close(i);
+                        FD_CLR(i, &master);
+                    }
+                    else if (size == -1)
+                    {
+                        perror("recv");
+                        close(i);
+                        FD_CLR(i, &master);
+                    }
+                }
             }
 
         }
     }
-    close(listen_fd);
     return 0;
 }
