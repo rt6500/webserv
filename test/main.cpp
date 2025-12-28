@@ -29,7 +29,14 @@ int main(){
     addr.sin_port = htons(8080);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(listen_fd, (sockaddr*)&addr, sizeof(addr)) == -1)
+    int enable_reuse = 1;
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &enable_reuse, sizeof(enable_reuse)) < 0)
+    {
+        perror("setsockopt(SO_REUSEADDR)");
+        return 1;
+    }
+    socklen_t   len = sizeof(addr);
+    if (bind(listen_fd, (sockaddr*)&addr, len) == -1)
     {
         perror("bind");
         return 1;
