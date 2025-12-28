@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <sys/select.h> //select, fd_set, FD_*
 #include <cerrno>
+#include <fcntl.h>
 
 int main(){
     
@@ -33,6 +34,11 @@ int main(){
     if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &enable_reuse, sizeof(enable_reuse)) < 0)
     {
         perror("setsockopt(SO_REUSEADDR)");
+        return 1;
+    }
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEPORT, &enable_reuse, sizeof(enable_reuse)) < 0)
+    {
+        perror("setsockopt(SO_REUSEPORT)");
         return 1;
     }
     socklen_t   len = sizeof(addr);
