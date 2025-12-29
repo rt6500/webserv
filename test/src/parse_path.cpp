@@ -1,10 +1,10 @@
-#include "mini_werbserv.hpp"
+#include "server.hpp"
 #include <string>
 #include <stdlib.h>
 #include <algorithm>
 #include <iostream>
 
-bool extract_path(std::string& request, std::string& path)
+bool extract_path(const std::string& request, std::string& path)
 {
     size_t  pos_line = request.find("\r\n");
     if (pos_line == std::string::npos)
@@ -18,7 +18,7 @@ bool extract_path(std::string& request, std::string& path)
     return true;
 }
 
-int decide_status(std::string& path)
+int decide_status(const std::string& path)
 {
     if (path == "/")
         return 200;

@@ -1,11 +1,12 @@
-#include "mini_werbserv.hpp"
+#include "server.hpp"
 #include <iostream>
 #include <netinet/in.h> //send
+#include <sys/socket.h>
 #include <string>
 #include <sstream>
 #include <cstdio>
 
-void    send_function(int client_fd, char *buffer, size_t bytes, int flag)
+void    send_function(int client_fd, const char *buffer, size_t bytes, int flag)
 {
     (void)buffer;
     (void)bytes;
@@ -22,5 +23,5 @@ void    send_function(int client_fd, char *buffer, size_t bytes, int flag)
     if (sent == -1)
         perror("send");
     else
-        std::cout << "success to send" << std::endl;
+        std::cout << "success to send" << "\n";
 }

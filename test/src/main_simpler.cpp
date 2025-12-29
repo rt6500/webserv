@@ -3,7 +3,6 @@
 #include <netinet/in.h> //sockaddr
 #include <cstring>      //memset
 #include <unistd.h>     //close
-#include "mini_werbserv.hpp"
 #include <cstdio>
 #include <sys/select.h>
 
@@ -12,11 +11,13 @@ int main(){
     // AF_INET = IPv4
     // SOCK_STREAM= TCP
     //  protocol = 0
+
+    
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    std::cout << listen_fd << std::endl;
+    std::cout << listen_fd << "\n";
     if (listen_fd == -1)
     {
-        std::cerr << "socket" << std::endl;
+        std::cerr << "socket" << "\n";
         return 1;
     }
 
@@ -53,7 +54,7 @@ int main(){
         ssize_t bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes > 0)
         {
-            std::cout << "success to read " <<  bytes << "bytes" << std::endl;
+            std::cout << "success to read " <<  bytes << "bytes" << "\n";
             buffer[bytes] = '\0';
 
             /*=== parsing path ===*/
@@ -62,7 +63,7 @@ int main(){
             if (!extract_path(request, path))
                 std::cerr << "invalid request\n";
             else
-                std::cout << "path: " << path << std::endl;
+                std::cout << "path: " << path << "\n";
 
             /*=== decide status ===*/
             int status = decide_status(path);
@@ -71,7 +72,7 @@ int main(){
             send_function(client_fd, buffer, bytes, 0);
         }
         else if (bytes == 0)
-            std::cout << "client disconnected" << std::endl;
+            std::cout << "client disconnected" << "\n";
         else
             perror("recv");
 
