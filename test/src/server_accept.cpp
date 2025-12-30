@@ -9,6 +9,12 @@
 #include <sys/socket.h> // recv/accept
 #include <vector>
 
+/*=== accept ===*/
+//no queue in accept queue -> program is sleeping(blocking)
+//takes one waiting TCP connection from the listening socket’s queue
+//creates a new socket that represents that connection.
+
+// accept in a loop -> no sleep
 void    accept_new_client(int listen_fd, 
     fd_set& master_read, int& fd_max, ConnMap& conns, std::vector<int>& clients)
 {
@@ -17,8 +23,13 @@ void    accept_new_client(int listen_fd,
         int client_fd = accept(listen_fd, NULL, NULL);
         if (client_fd == -1)
         {
+            // EINTR: Error: Interrupted System Call(awakened not beause a client connected)
+            // try again
             if (errno == EINTR)
                 continue;
+            // EAGAIN: No bytes yet. 
+            // leave loop
+            // EWOULDBLOCK == EAGAIN
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break ;
             perror("accept");

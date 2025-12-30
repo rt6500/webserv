@@ -3,7 +3,6 @@ CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -I include
 CXXFLAGS += -MMD -MP -pedantic
 NAME := webserv
 SRCS := src/main.cpp \
-		src/parse_path.cpp \
 		src/send.cpp \
 		src/server_accept.cpp \
 		src/net_utils.cpp \

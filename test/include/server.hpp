@@ -33,7 +33,5 @@ void    handle_write(int fd, ConnMap& conns, fd_set& master_read, fd_set& master
 void    send_function(int client_fd, const char *data, std::size_t len, int flags);
 
 // std::string parse_path(char* buffer);
-bool    extract_path(const std::string& request, std::string& path);
-int     decide_status(const std::string& path);
 
 #endif
