@@ -12,10 +12,16 @@ int main(){
 
     int         listen_fd;
     sockaddr_in addr;
-    fd_set      read_fds;
-    fd_set      write_fds;
+
+    //  interest sets (persistent) "Which fds do I WANT the kernel to watch"
+    // change only when the program logic changes like after accept/close/send etc..
     fd_set      master_read;
     fd_set      master_write;
+    //  working copies (temporary) "Which fds are READY THIS ITERATION?"
+    //  overwritten every loop. destroyed by select()
+    fd_set      read_fds;
+    fd_set      write_fds;
+
     int         fd_max;
     ConnMap     conns;
     std::vector<int>    clients;
@@ -26,7 +32,7 @@ int main(){
     while (1) {
         read_fds = master_read;
         write_fds = master_write;
-        /*=== select : */
+        /*=== select === */
         if (select(fd_max + 1, &read_fds, &write_fds, NULL, NULL) == -1)
         {
             if (errno == EINTR)

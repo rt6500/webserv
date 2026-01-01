@@ -10,7 +10,8 @@ static std::string  code_interpret(int code)
     switch (code) {
         case 200: return "OK";
         case 404: return "Not Found";
-        case 414: return "Payload Too Large";
+        case 413: return "Payload Too Large";
+        case 414: return "URI Too Long";
         case 400: return "Bad Request";
         default: return "Unkown";
     }
@@ -72,12 +73,19 @@ void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
         conn.in_buf.append(buffer, size);
         int code = 0;;
         if (conn.in_buf.size() > 8 * 1e3)
+        {
             response_413(conn, fd, master_write, master_read);
+            return ;
+        }
         if (conn.in_buf.find("\r\n\r\n") == std::string::npos)
             return ;
         if (extract_first_line_and_decide_status(conn, code))
         {
             std::cerr << "invalid request\n";
+            conn.out_buf =  response(400);
+            conn.out_sent = 0;
+            FD_SET(fd, &master_write);
+            FD_CLR(fd, &master_read);
             return ;
         }
         //TODO remove processed bytes
@@ -97,6 +105,7 @@ void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
     else
     {   //EINTR interrupted by a signal
         //EAGAIN/EWOULDBLOCK "nothing to read right now "
+        // no close()!
         if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
             return;
         handle_close(fd, conns, master_read, master_write, clients);
