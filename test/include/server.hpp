@@ -15,6 +15,15 @@ struct  Connection
     Connection() : out_sent(0) {}
 };
 
+struct Request
+{
+    std::string method;
+    std::string path;
+    std::string version;
+    std::map<std::string, std::string> headers;
+    std::string body;
+};
+
 typedef std::map<int, Connection>   ConnMap;
 
 int    setup_listen_socket(int& listen_fd, sockaddr_in& addr,

@@ -1,29 +1,17 @@
-#include "net_utils.hpp"
-#include "server.hpp"
-#include <fcntl.h>  //fcntl
-#include <cstdio>   //perror
-#include <stdlib.h>
-// #include <algorithm>
-#include <iostream>
 
-bool set_nonblocking(int fd)
+#include <string>
+#include <iostream>
+#include <cstdlib>
+#include <map>
+
+struct Request
 {
-    // Get file status flags
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1)
-    {
-        perror("F_GETFL");
-        return false;
-    }
-    // Set file status flags
-    int ret =fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    if (ret == -1)
-    {
-        perror("F_SETFL");
-        return false;
-    }
-    return true;
-}
+    std::string method;
+    std::string path;
+    std::string version;
+    std::map<std::string, std::string> headers;
+    std::string body;
+};
 
 bool extract_method_path_version(const std::string& line, Request& req)
 {
@@ -40,4 +28,13 @@ bool extract_method_path_version(const std::string& line, Request& req)
     std::cout << "path: [" << req.path << "]" << std::endl;
     std::cout << "version: [" << req.version << "]" << std::endl;
     return true;
+}
+
+int main () {
+    std::string input ="GET / HTTP/1.1";
+    // "GET / HTTP/1.1\r\nHost: 127.0.0.1:8080\r\n\
+    // User-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n";
+    Request req;
+    extract_method_path_version(input, req);
+    return 0;
 }

@@ -9,10 +9,10 @@ static std::string  code_interpret(int code)
 {
     switch (code) {
         case 200: return "OK";
-        case 404: return "Not Found";
-        case 413: return "Payload Too Large";
+        case 404: return "Not Found";           //"request is valid, resource not found"
+        case 413: return "Payload Too Large";   // "request is valid, but too large"
         case 414: return "URI Too Long";
-        case 400: return "Bad Request";
+        case 400: return "Bad Request";         // "request is invalid"
         default: return "Unkown";
     }
 }
@@ -29,30 +29,49 @@ static std::string   response(int code)
     return oss.str();
 }
 
-static int  extract_first_line_and_decide_status(Connection& conn, int& code)
+static void commit_response(Connection& conn, int fd, fd_set& master_write, fd_set& master_read, int code)
 {
-    size_t  pos_line = conn.in_buf.find("\r\n");
-    if (pos_line == std::string::npos)
-        return 1;
-    std::string line = conn.in_buf.substr(0, pos_line);
-    if (line.substr(0, 4) != "GET ")
-        return 1;
-    std::string path;
-    if (!extract_path(line, path))
-        code = 400;
-    else
-        code = decide_status(path);
     conn.out_buf = response(code);
-    return 0;
-}
-
-static void response_413(Connection& conn, int fd, fd_set& master_write, fd_set& master_read)
-{
-    conn.out_buf = response(413);
     conn.out_sent = 0;
     FD_SET(fd, &master_write);
     FD_CLR(fd, &master_read);
-    return ;
+}
+
+// only checks format
+static int  parse_request_line(Connection& conn, Request& req)
+{
+    size_t  pos_line = conn.in_buf.find("\r\n");
+    if (pos_line == std::string::npos)
+        return -1;  // not ready
+    std::string line = conn.in_buf.substr(0, pos_line);
+    if (!extract_method_path_version(line, req))
+        return 400;
+    return 0;
+}
+
+// only decides resorce existence
+static int route(const std::string& path)
+{
+    if (path == "/")
+        return 200;
+    else
+        return 404;
+}
+
+static int parse_header(std::string in)
+{
+    size_t  pos = in.find("\r\n");
+    if (pos == std::string::npos)
+        return -1;
+    std::string after_first = in.substr(pos + 2);
+    size_t pos_colon = after_first.find(":");
+    std::string key = after_first.substr(0, pos_colon - 1);
+    size_t  pos_newline = after_first.find("\r\n");
+    std::string value = after_first.substr(pos_colon + 1, pos_newline - key.size());
+    std::cout << "key: [" << key << "]" << std::endl;
+    std::cout <<"value: [" << value << "]" << std::endl;
+    return 1;
+
 }
 
 void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
@@ -66,34 +85,37 @@ void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
     char    buffer[1024];
     /*=== recv ===*/
     // received bytes recv(connected socket, buffer to read into, max bytes, flags)
-    ssize_t size = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    ssize_t size = recv(fd, buffer, sizeof(buffer), 0);
     if (size > 0)
     {
         std::cout << "data arrived fd=" << fd << ", bytes=" << size << "\n";
         conn.in_buf.append(buffer, size);
-        int code = 0;;
         if (conn.in_buf.size() > 8 * 1e3)
         {
-            response_413(conn, fd, master_write, master_read);
+            commit_response(conn, fd, master_write, master_read, 413);
+            conn.in_buf.clear();
             return ;
         }
+        // "\r\n\r\n" is the end-of-HTTP-headers marker
         if (conn.in_buf.find("\r\n\r\n") == std::string::npos)
             return ;
-        if (extract_first_line_and_decide_status(conn, code))
+        parse_header(conn.in_buf);
+        Request req;
+        int ret = parse_request_line(conn, req);
+        if (ret == 400)
         {
-            std::cerr << "invalid request\n";
-            conn.out_buf =  response(400);
-            conn.out_sent = 0;
-            FD_SET(fd, &master_write);
-            FD_CLR(fd, &master_read);
+            commit_response(conn, fd, master_write, master_read, 400);
+            conn.in_buf.clear();
             return ;
         }
-        //TODO remove processed bytes
-        conn.out_sent = 0;
-        FD_SET(fd, &master_write);
-        FD_CLR(fd, &master_read);
+        else if (ret == -1)
+            return ;
+        int code = route(req.path);
+        commit_response(conn, fd, master_write, master_read, code);
         std::cout << conn.out_buf << "\n";
+        conn.in_buf.clear();
         // std::cout.write(buffer, size);
+        return ;
     }
     // recv() == 0
     // peer closed connection (FIN)

@@ -3,10 +3,8 @@
 #ifndef NET_UTILS_HPP
 #define NET_UTILS_HPP
 #include <string>
-
+#include "server.hpp"
 
 bool    set_nonblocking(int fd);
-bool    extract_path(const std::string& request, std::string& path);
-int     decide_status(const std::string& path);
-
+bool    extract_method_path_version(const std::string& line, Request& req);
 #endif
