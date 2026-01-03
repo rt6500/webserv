@@ -5,6 +5,8 @@
 #include <cerrno>
 #include <vector>
 
+#define NOT_READY -1
+
 static std::string  code_interpret(int code)
 {
     switch (code) {
@@ -38,13 +40,13 @@ static void commit_response(Connection& conn, int fd, fd_set& master_write, fd_s
 }
 
 // only checks format
-static int  parse_request_line(Connection& conn, Request& req)
+static int  parse_request_line(Connection& conn)
 {
     size_t  pos_line = conn.in_buf.find("\r\n");
     if (pos_line == std::string::npos)
-        return -1;  // not ready
+        return NOT_READY;
     std::string line = conn.in_buf.substr(0, pos_line);
-    if (!extract_method_path_version(line, req))
+    if (!extract_method_path_version(line, conn.req))
         return 400;
     return 0;
 }
@@ -58,20 +60,42 @@ static int route(const std::string& path)
         return 404;
 }
 
-static int parse_header(std::string in)
+static int parse_header(Connection& conn)
 {
-    size_t  pos = in.find("\r\n");
-    if (pos == std::string::npos)
-        return -1;
-    std::string after_first = in.substr(pos + 2);
-    size_t pos_colon = after_first.find(":");
-    std::string key = after_first.substr(0, pos_colon - 1);
-    size_t  pos_newline = after_first.find("\r\n");
-    std::string value = after_first.substr(pos_colon + 1, pos_newline - key.size());
-    std::cout << "key: [" << key << "]" << std::endl;
-    std::cout <<"value: [" << value << "]" << std::endl;
-    return 1;
-
+    std::string in = conn.in_buf;
+    std::string::size_type  pos = in.find("\r\n");
+    std::string::size_type  header_end = in.find("\r\n\r\n");
+    if (pos == std::string::npos || header_end == std::string::npos)
+        return NOT_READY;
+    std::string::size_type  headers_start = pos + 2;
+    std::string::size_type i = headers_start;
+    while (i < header_end)
+    {
+        std::string::size_type  k = in.find("\r\n", i);
+        if (k == std::string::npos || k > header_end)
+        {
+            std::cerr << "Error: invalid request\n";
+            return 400;
+        }
+        std::string line = in.substr(i, k - i);
+        if (line.empty())
+            break ;
+        std::string::size_type  value_start = line.find(':');
+        if (value_start == std::string::npos)
+        {
+            std::cerr << "Error: invalid request\n";
+            return 400;
+        }
+        std::string value = line.substr(value_start + 1);
+        std::string key = line.substr(0, value_start);
+        trim_spaces(value);
+        trim_spaces(key);
+        if (key.empty())
+            return 400;
+        conn.req.headers[key] = value;
+        i = k + 2;
+    }
+    return 0;
 }
 
 void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
@@ -96,21 +120,26 @@ void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
             conn.in_buf.clear();
             return ;
         }
-        // "\r\n\r\n" is the end-of-HTTP-headers marker
-        if (conn.in_buf.find("\r\n\r\n") == std::string::npos)
-            return ;
-        parse_header(conn.in_buf);
-        Request req;
-        int ret = parse_request_line(conn, req);
-        if (ret == 400)
+
+        int ret1 = parse_request_line(conn);
+        if (ret1 == NOT_READY)
+            return;
+        if (ret1 == 400)
         {
             commit_response(conn, fd, master_write, master_read, 400);
             conn.in_buf.clear();
             return ;
         }
-        else if (ret == -1)
+        int ret2 = parse_header(conn);
+        if (ret2 == NOT_READY)
             return ;
-        int code = route(req.path);
+        if (ret2 == 400)
+        {
+            commit_response(conn, fd, master_write, master_read, 400);
+            conn.in_buf.clear();
+            return ;
+        }
+        int code = route(conn.req.path);
         commit_response(conn, fd, master_write, master_read, code);
         std::cout << conn.out_buf << "\n";
         conn.in_buf.clear();

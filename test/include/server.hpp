@@ -7,14 +7,6 @@
 # include <netinet/in.h>     //sockaddr
 # include <vector>
 
-struct  Connection
-{
-    std::string in_buf;
-    std::string out_buf;
-    std::size_t out_sent;
-    Connection() : out_sent(0) {}
-};
-
 struct Request
 {
     std::string method;
@@ -23,6 +15,17 @@ struct Request
     std::map<std::string, std::string> headers;
     std::string body;
 };
+
+struct  Connection
+{
+    std::string in_buf;
+    std::string out_buf;
+    std::size_t out_sent;
+    Connection() : out_sent(0) {}
+    Request     req;
+};
+
+
 
 typedef std::map<int, Connection>   ConnMap;
 

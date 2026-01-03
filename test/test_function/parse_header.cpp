@@ -2,6 +2,8 @@
 #include <iostream>
 #include <map>
 
+#define NOT_READY -1
+
 struct Request
 {
     std::string method;
@@ -11,41 +13,75 @@ struct Request
     std::string body;
 };
 
-static int parse_header(std::string in, Request& req)
+static void trim_spaces(std::string& in)
 {
-    size_t  headers_start = in.find("\r\n") + 2;
-    size_t  header_end_marker = in.find("\r\n\r\n");
-
-    for (size_t i = headers_start; i < header_end_marker; ++i)
+    std::string::size_type i = 0;
+    while (i < in.size() && std::isspace(static_cast<unsigned char>(in[i])))
+        i++;
+    std::string::size_type k = in.size();
+    while (k > 0 && std::isspace(static_cast<unsigned char>(in[k - 1])))
+        k--;
+    if (i == k)
     {
-        size_t  k = in.find("\r\n", i);
+        in.clear();
+        return;
     }
 
-    size_t pos_colon = after_first.find(": ");
-    std::string key = after_first.substr(0, pos_colon);
-    size_t  pos_newline = after_first.find("\r\n");
-    std::string value = after_first.substr(pos_colon + 2, pos_newline - key.size() - 2);
-    std::cout << "key: [" << key << "]" << std::endl;
-    std::cout <<"value: [" << value << "]" << std::endl;
-    size_t  pos = in.find("\r\n");
-    if (pos == std::string::npos)
-        return -1;
-    std::string str = in.substr(pos + 2);
-    while (str.find("\r\n"))
-    {
-        size_t pos_colon = str.find(": ");
-        std::string key = str.substr(0, pos_colon);
-        size_t  pos_newline = str.find("\r\n");
-        std::string value = str.substr(pos_colon + 2, pos_newline - key.size() - 2);
-        req.headers.insert(std::make_pair(key, value));
-        str = str.substr(pos + 2);
-    }
-    return 1;
+    in = in.substr(i, k - i);
+}
 
+static int parse_header(const std::string& in, Request& req)
+{
+    std::string::size_type  pos = in.find("\r\n");
+    std::string::size_type  header_end = in.find("\r\n\r\n");
+    if (pos == std::string::npos || header_end == std::string::npos)
+        return NOT_READY;
+    std::string::size_type  headers_start = pos + 2;
+    std::string::size_type i = headers_start;
+    while (i < header_end)
+    {
+        std::string::size_type  k = in.find("\r\n", i);
+        if (k == std::string::npos || k > header_end)
+        {
+            std::cerr << "Error: invalid request\n";
+            return 1;
+        }
+        std::string line = in.substr(i, k - i);
+        if (line.empty())
+            break ;
+        std::string::size_type  value_start = line.find(':');
+        if (value_start == std::string::npos)
+        {
+            std::cerr << "Error: invalid request\n";
+            return 1;
+        }
+        std::string value = line.substr(value_start + 1);
+        std::string key = line.substr(0, value_start);
+        trim_spaces(value);
+        trim_spaces(key);
+        if (key.empty())
+            return 400;
+        req.headers[key] = value;
+        i = k + 2;
+    }
+    return 0;
 }
 
 int main () {
-    std::string str = "GET / HTTP/1.1\r\nHost: 127.0.0.1:8080\r\n";
+    std::string str = "GET / HTTP/1.1\r\n    Host:     127.0.0.1:8080   \r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n";
     Request req;
     parse_header(str, req);
+    std::map<std::string, std::string>::iterator    it;
+    std::cout << "Map Contents:" << std::endl;
+    for (it = req.headers.begin(); it != req.headers.end(); ++it)
+        std::cout << "key: [" << it->first << "]" << " value: [" << it->second << "]" << std::endl;
+    return 0;
 }
+
+// int main() {
+//     std::string str = "   abc  \n";
+//     trim_spaces_preceding(str);
+//     std::cout << "[" << str << "]" << std::endl;
+//     trim_spaces_following(str);
+//     std::cout << "[" << str << "]" << std::endl;
+// }

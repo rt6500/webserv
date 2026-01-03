@@ -41,3 +41,20 @@ bool extract_method_path_version(const std::string& line, Request& req)
     std::cout << "version: [" << req.version << "]" << std::endl;
     return true;
 }
+
+void trim_spaces(std::string& in)
+{
+    std::string::size_type i = 0;
+    while (i < in.size() && std::isspace(static_cast<unsigned char>(in[i])))
+        i++;
+    std::string::size_type k = in.size();
+    while (k > 0 && std::isspace(static_cast<unsigned char>(in[k - 1])))
+        k--;
+    if (i == k)
+    {
+        in.clear();
+        return;
+    }
+
+    in = in.substr(i, k - i);
+}

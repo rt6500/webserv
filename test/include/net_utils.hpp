@@ -7,4 +7,5 @@
 
 bool    set_nonblocking(int fd);
 bool    extract_method_path_version(const std::string& line, Request& req);
+void trim_spaces(std::string& in);
 #endif
