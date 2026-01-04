@@ -12,30 +12,30 @@ void handle_write(int fd, ConnMap& conns, fd_set& master_read,
         return ;
     Connection& conn = it->second;
     size_t  rest = conn.out_buf.size() - conn.out_sent;
-    std::cout << "out_buf.size(): " << conn.out_buf.size() << " out_sent: " << conn.out_sent << " rest: " << rest;
     if (rest == 0)
     {
         FD_CLR(fd, &master_write);
+        if (conn.close_after_write)
+            handle_close(fd, conns, master_read, master_write, clients);
         return ;
     }
     ssize_t  sent_bytes = send(fd, conn.out_buf.data() + conn.out_sent, rest, 0);
-    std::cout << " send: " << sent_bytes << "\n";
     if (sent_bytes > 0)
-        conn.out_sent += sent_bytes;
-    else if (sent_bytes == 0)
-    {
-        handle_close(fd, conns, master_read, master_write, clients);
-        return ;
-    }
+        conn.out_sent += (size_t)sent_bytes;
     else
     {
-        if (errno == EINTR)
-            return ;
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        if (sent_bytes == -1 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
             return ;
         handle_close(fd, conns, master_read, master_write, clients);
         return ;
     }
     if (conn.out_sent == conn.out_buf.size())
-        handle_close(fd, conns, master_read, master_write, clients);
+    {
+        FD_CLR(fd, &master_write);
+        if (conn.close_after_write)
+        {
+            handle_close(fd, conns, master_read, master_write, clients);
+            return;
+        }
+    }
 }

@@ -21,7 +21,10 @@ struct  Connection
     std::string in_buf;
     std::string out_buf;
     std::size_t out_sent;
-    Connection() : out_sent(0) {}
+    bool        close_after_write;
+    Connection()    : out_sent(0)
+                    , close_after_write(false)
+    {}
     Request     req;
 };
 
