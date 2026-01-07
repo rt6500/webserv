@@ -4,9 +4,10 @@
 #include <sstream>
 #include <cerrno>
 #include <vector>
-
+#include "config.hpp"
 #define NOT_READY 0
 #define BAD_REQUEST -1
+
 
 static std::string  code_interpret(int code)
 {
@@ -155,6 +156,13 @@ static bool process_incomming(Connection& conn, int fd, fd_set& master_write, fd
     return true;
 }
 
+static std::string format_path(const std::string& uri)
+{
+    if (uri == "/")
+        return std::string(WEB_ROOT) + "/" + WEB_INDEX;
+    return std::string(WEB_ROOT) + uri;
+}
+
 void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
     fd_set& master_write, std::vector<int>& clients)
 {
@@ -167,6 +175,8 @@ void    handle_read(int fd, ConnMap& conns, fd_set& master_read,
     if (r > 0)
     {
         (void)process_incomming(conn, fd, master_write, master_read);
+        std::string path;
+        format_path(conn.req.path);
         return ;
     }
     if ( r == -2)
