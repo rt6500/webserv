@@ -7,6 +7,7 @@
 #include "config.hpp"
 #define NOT_READY 0
 #define BAD_REQUEST -1
+#define READY 1
 
 
 static std::string  code_interpret(int code)
@@ -122,7 +123,7 @@ static int recv_into_buffer(int fd, Connection& conn)
     return -1;  // fetal error
 }
 
-static bool process_incomming(Connection& conn, int fd, fd_set& master_write, fd_set& master_read)
+static int process_incomming(Connection& conn, int fd, fd_set& master_write, fd_set& master_read)
 {
     if (conn.in_buf.size() > 8 * 1000)
     {
@@ -136,7 +137,7 @@ static bool process_incomming(Connection& conn, int fd, fd_set& master_write, fd
     std::cout << "parsed=" << consumed
               << " remain=" << conn.in_buf.size() - consumed << "\n";
     if (consumed == NOT_READY)
-        return false;
+        return NOT_READY;
     if (consumed == BAD_REQUEST)
     {
             commit_response(conn, fd, master_write, master_read, 400);
@@ -146,14 +147,14 @@ static bool process_incomming(Connection& conn, int fd, fd_set& master_write, fd
             else
                 conn.in_buf.clear();
             conn.req = Request();
-            return true;
+            return BAD_REQUEST;
     }
     //success
     conn.in_buf.erase(0, (size_t)consumed);
     int code = route(conn.req.path);
     commit_response(conn, fd, master_write, master_read, code);
     conn.req = Request();
-    return true;
+    return READY;
 }
 
 static std::string format_path(const std::string& uri)
